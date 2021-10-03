@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use lazy_static::lazy_static;
 use odbc_api::{
     buffers,
@@ -12,6 +14,12 @@ lazy_static! {
         let _ = env_logger::builder().is_test(true).try_init();
         Environment::new().unwrap()
     };
+}
+
+/// Use this constructor for an ODBC environment in order to quickly switch between different ways
+/// an Environment could be constructed. This is usefull for testing race conditions.
+pub fn env() -> impl Borrow<Environment> {
+    &*ENV
 }
 
 /// Used to adapt test behaviour to different drivers and datasources

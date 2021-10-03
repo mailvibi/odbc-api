@@ -5,7 +5,8 @@ use tempfile::NamedTempFile;
 use test_case::test_case;
 
 use common::{
-    cursor_to_string, setup_empty_table, table_to_string, Profile, SingleColumnRowSetBuffer, ENV,
+    cursor_to_string, env, setup_empty_table, table_to_string, Profile, SingleColumnRowSetBuffer,
+    ENV,
 };
 
 use odbc_api::{
@@ -19,6 +20,7 @@ use odbc_api::{
     U16String,
 };
 use std::{
+    borrow::Borrow,
     convert::TryInto,
     ffi::CString,
     io::{self, Write},
@@ -101,7 +103,8 @@ fn insert_too_large_element_in_text_column() {
 
 #[test]
 fn bogus_connection_string() {
-    let conn = ENV.connect_with_connection_string("foobar");
+    let env = env();
+    let conn = env.borrow().connect_with_connection_string("foobar");
     assert!(matches!(conn, Err(_)));
 }
 
@@ -261,7 +264,9 @@ fn text_buffer(profile: &Profile) {
 
 #[test]
 fn column_attributes() {
-    let conn = ENV
+    let env = env();
+    let conn = env
+        .borrow()
         .connect_with_connection_string(MSSQL_CONNECTION)
         .unwrap();
     let sql = "SELECT title, year FROM Movies;";
@@ -995,7 +1000,9 @@ fn columnar_insert_wide_varchar(profile: &Profile) {
 
 #[test]
 fn bind_integer_parameter() {
-    let conn = ENV
+    let env = env();
+    let conn = env
+        .borrow()
         .connect_with_connection_string(MSSQL_CONNECTION)
         .unwrap();
     let sql = "SELECT title FROM Movies where year=?;";
@@ -1145,7 +1152,9 @@ fn preallocation_soundness(profile: &Profile) {
 
 #[test]
 fn integer_parameter_as_string() {
-    let conn = ENV
+    let env = env();
+    let conn = env
+        .borrow()
         .connect_with_connection_string(MSSQL_CONNECTION)
         .unwrap();
     let sql = "SELECT title FROM Movies where year=?;";
@@ -1164,7 +1173,9 @@ fn integer_parameter_as_string() {
 
 #[test]
 fn parameter_option_integer_some() {
-    let conn = ENV
+    let env = env();
+    let conn = env
+        .borrow()
         .connect_with_connection_string(MSSQL_CONNECTION)
         .unwrap();
     let sql = "SELECT title FROM Movies where year=?;";
@@ -1183,7 +1194,9 @@ fn parameter_option_integer_some() {
 
 #[test]
 fn parameter_option_integer_none() {
-    let conn = ENV
+    let env = env();
+    let conn = env
+        .borrow()
         .connect_with_connection_string(MSSQL_CONNECTION)
         .unwrap();
     let sql = "SELECT title FROM Movies where year=?;";
@@ -1259,7 +1272,9 @@ fn wchar(profile: &Profile) {
 #[test]
 #[cfg(not(target_os = "windows"))] // Windows does not use UTF-8 locale by default
 fn wchar_as_char() {
-    let conn = ENV
+    let env = env();
+    let conn = env
+        .borrow()
         .connect_with_connection_string(MSSQL.connection_string)
         .unwrap();
     // NVARCHAR(2) <- NVARCHAR(1) would be enough to held the character, but we de not allocate
@@ -1277,7 +1292,9 @@ fn wchar_as_char() {
 
 #[test]
 fn two_parameters_in_tuple() {
-    let conn = ENV
+    let env = env();
+    let conn = env
+        .borrow()
         .connect_with_connection_string(MSSQL_CONNECTION)
         .unwrap();
     let sql = "SELECT title FROM Movies where ? < year AND year < ?;";
@@ -1323,7 +1340,8 @@ fn heterogenous_parameters_in_array(profile: &Profile) {
 
 #[test]
 fn column_names_iterator() {
-    let conn = ENV
+    let env = env();
+    let conn = env.borrow()
         .connect_with_connection_string(MSSQL_CONNECTION)
         .unwrap();
     let sql = "SELECT title, year FROM Movies;";
@@ -1664,7 +1682,8 @@ fn output_parameter() {
     let mut ret = Nullable::<i32>::null();
     let mut param = Nullable::<i32>::new(7);
 
-    let conn = ENV
+    let env = env();
+    let conn = env.borrow()
         .connect_with_connection_string(MSSQL_CONNECTION)
         .unwrap();
     conn.execute("{? = call TestParam(?)}", (Out(&mut ret), &mut param))
@@ -2431,8 +2450,9 @@ fn varchar_null(profile: &Profile) {
 #[test_case(MARIADB; "Maria DB")]
 #[test_case(SQLITE_3; "SQLite 3")]
 fn get_full_connection_string(profile: &Profile) {
+    let env = env();
     let mut completed_connection_string = OutputStringBuffer::with_buffer_size(1023);
-    ENV.driver_connect(
+    env.borrow().driver_connect(
         profile.connection_string,
         Some(&mut completed_connection_string),
         odbc_api::DriverCompleteOption::NoPrompt,
@@ -2454,7 +2474,8 @@ fn get_full_connection_string(profile: &Profile) {
 // #[test_case(SQLITE_3; "SQLite 3")] Does not write truncated connection string at all
 fn get_full_connection_string_truncated(profile: &Profile) {
     let mut completed_connection_string = OutputStringBuffer::with_buffer_size(1);
-    ENV.driver_connect(
+    let env = env();
+    env.borrow().driver_connect(
         profile.connection_string,
         Some(&mut completed_connection_string),
         odbc_api::DriverCompleteOption::NoPrompt,
@@ -2521,7 +2542,8 @@ fn current_catalog(profile: &Profile, expected_catalog: &str) {
 
 #[test]
 fn columns_query() {
-    let conn = ENV
+    let env = env();
+    let conn = env.borrow()
         .connect_with_connection_string(MSSQL.connection_string)
         .unwrap();
 
@@ -2663,7 +2685,8 @@ fn row_array_size_66536(profile: &Profile) {
 #[ignore = "Runs for a very long time"]
 fn many_diagnostic_messages() {
     let table_name = "ManyDiagnosticMessages";
-    let conn = ENV
+    let env = env();
+    let conn = env.borrow()
         .connect_with_connection_string(MSSQL.connection_string)
         .unwrap();
     // In order to generate a lot of diagnostic messages with one function call, we try a bulk
