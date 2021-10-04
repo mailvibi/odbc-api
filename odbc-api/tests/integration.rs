@@ -1297,7 +1297,7 @@ fn wchar(profile: &Profile) {
 #[test]
 #[cfg(not(target_os = "windows"))] // Windows does not use UTF-8 locale by default
 fn wchar_as_char() {
-    let env = env();
+    let env = odbc_env();
     let conn = env
         .borrow()
         .connect_with_connection_string(MSSQL.connection_string)
