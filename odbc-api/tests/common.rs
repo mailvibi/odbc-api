@@ -18,7 +18,12 @@ lazy_static! {
 
 /// Use this constructor for an ODBC environment in order to quickly switch between different ways
 /// an Environment could be constructed. This is usefull for testing race conditions.
-pub fn env() -> impl Borrow<Environment> {
+pub fn odbc_env() -> impl Borrow<Environment> {
+
+    // unsafe {
+    //     Environment::new().unwrap()
+    // }
+
     &*ENV
 }
 
@@ -34,8 +39,8 @@ pub struct Profile {
 
 impl Profile {
     /// Open a new connection using the connection string of the profile
-    pub fn connection(&self) -> Result<Connection<'static>, Error> {
-        ENV.connect_with_connection_string(self.connection_string)
+    pub fn connection<'a>(&self, env: &'a Environment) -> Result<Connection<'a>, Error> {
+        env.connect_with_connection_string(self.connection_string)
     }
 }
 

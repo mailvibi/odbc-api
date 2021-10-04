@@ -5,8 +5,8 @@ use tempfile::NamedTempFile;
 use test_case::test_case;
 
 use common::{
-    cursor_to_string, env, setup_empty_table, table_to_string, Profile, SingleColumnRowSetBuffer,
-    ENV,
+    cursor_to_string, odbc_env, setup_empty_table, table_to_string, Profile,
+    SingleColumnRowSetBuffer, ENV,
 };
 
 use odbc_api::{
@@ -103,7 +103,7 @@ fn insert_too_large_element_in_text_column() {
 
 #[test]
 fn bogus_connection_string() {
-    let env = env();
+    let env = odbc_env();
     let conn = env.borrow().connect_with_connection_string("foobar");
     assert!(matches!(conn, Err(_)));
 }
@@ -112,13 +112,15 @@ fn bogus_connection_string() {
 #[test_case(MARIADB; "Maria DB")]
 #[test_case(SQLITE_3; "SQLite 3")]
 fn connect_to_db(profile: &Profile) {
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     assert!(!conn.is_dead().unwrap())
 }
 
 #[test]
 fn describe_columns() {
-    let conn = MSSQL.connection().unwrap();
+    let env = odbc_env();
+    let conn = MSSQL.connection(env.borrow()).unwrap();
     setup_empty_table(
         &conn,
         MSSQL.index_type,
@@ -230,7 +232,8 @@ fn describe_columns() {
 #[test_case(SQLITE_3; "SQLite 3")]
 fn text_buffer(profile: &Profile) {
     let table_name = "TextBuffer";
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(
         &conn,
         profile.index_type,
@@ -264,7 +267,7 @@ fn text_buffer(profile: &Profile) {
 
 #[test]
 fn column_attributes() {
-    let env = env();
+    let env = odbc_env();
     let conn = env
         .borrow()
         .connect_with_connection_string(MSSQL_CONNECTION)
@@ -289,7 +292,8 @@ fn column_attributes() {
 #[test_case(MARIADB; "Maria DB")]
 #[test_case(SQLITE_3; "SQLite 3")]
 fn bind_char(profile: &Profile) {
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     let table_name = "BindChar";
     setup_empty_table(&conn, profile.index_type, table_name, &["CHAR(5)"]).unwrap();
     let insert_sql = format!("INSERT INTO {} (a) VALUES ('Hello');", table_name);
@@ -310,7 +314,8 @@ fn bind_char(profile: &Profile) {
 #[test_case(MARIADB; "Maria DB")]
 #[test_case(SQLITE_3; "SQLite 3")]
 fn bind_char_to_wchar(profile: &Profile) {
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     let table_name = "BindCharToWChar";
     setup_empty_table(&conn, profile.index_type, table_name, &["CHAR(5)"]).unwrap();
     let insert_sql = format!("INSERT INTO {} (a) VALUES ('Hello');", table_name);
@@ -332,7 +337,8 @@ fn bind_char_to_wchar(profile: &Profile) {
 #[test_case(MARIADB; "Maria DB")]
 #[test_case(SQLITE_3; "SQLite 3")]
 fn truncate_fixed_sized(profile: &Profile) {
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     let table_name = "TruncateFixedSized";
     setup_empty_table(&conn, profile.index_type, table_name, &["CHAR(5)"]).unwrap();
     let insert_sql = format!("INSERT INTO {} (a) VALUES ('Hello');", table_name);
@@ -353,7 +359,8 @@ fn truncate_fixed_sized(profile: &Profile) {
 #[test_case(MARIADB; "Maria DB")]
 #[test_case(SQLITE_3; "SQLite 3")]
 fn bind_varchar(profile: &Profile) {
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     let table_name = "BindVarchar";
     setup_empty_table(&conn, profile.index_type, table_name, &["VARCHAR(100)"]).unwrap();
     let insert_sql = format!("INSERT INTO {} (a) VALUES ('Hello, World!');", table_name);
@@ -374,7 +381,8 @@ fn bind_varchar(profile: &Profile) {
 #[test_case(MARIADB; "Maria DB")]
 #[test_case(SQLITE_3; "SQLite 3")]
 fn bind_varchar_to_wchar(profile: &Profile) {
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     let table_name = "BindVarcharToWChar";
     setup_empty_table(&conn, profile.index_type, table_name, &["VARCHAR(100)"]).unwrap();
     let insert_sql = format!("INSERT INTO {} (a) VALUES ('Hello, World!');", table_name);
@@ -399,7 +407,8 @@ fn bind_varchar_to_wchar(profile: &Profile) {
 fn bind_numeric_to_float(profile: &Profile) {
     // Setup table
     let table_name = "BindNumericToFloat";
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(&conn, profile.index_type, table_name, &["NUMERIC(3,2)"]).unwrap();
     let insert_sql = format!("INSERT INTO {} (a) VALUES (?);", table_name);
     conn.execute(&insert_sql, &1.23).unwrap();
@@ -421,7 +430,8 @@ fn bind_numeric_to_float(profile: &Profile) {
 fn columnar_fetch_varbinary(profile: &Profile) {
     // Setup
     let table_name = "ColumnarFetchVarbinary";
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(&conn, profile.index_type, table_name, &["VARBINARY(10)"]).unwrap();
     let insert_sql = format!(
         "INSERT INTO {} (a) Values \
@@ -466,7 +476,8 @@ fn columnar_fetch_varbinary(profile: &Profile) {
 // #[test_case(SQLITE_3; "SQLite 3")]
 fn columnar_fetch_binary(profile: &Profile) {
     // Setup
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(
         &conn,
         profile.index_type,
@@ -518,7 +529,8 @@ fn columnar_fetch_binary(profile: &Profile) {
 fn columnar_fetch_timestamp(profile: &Profile) {
     let table_name = "ColumnarFetchTimestamp";
     // Setup
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(&conn, profile.index_type, table_name, &["DATETIME2(3)"]).unwrap();
     conn.execute(
         &format!(
@@ -602,7 +614,8 @@ fn columnar_fetch_timestamp(profile: &Profile) {
 fn columnar_insert_timestamp(profile: &Profile) {
     let table_name = "ColumnarInsertTimestamp";
     // Setup
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(&conn, profile.index_type, table_name, &["DATETIME2"]).unwrap();
 
     // Fill buffer with values
@@ -664,7 +677,8 @@ fn columnar_insert_timestamp(profile: &Profile) {
 fn columnar_insert_timestamp_ms(profile: &Profile) {
     let table_name = "ColmunarInsertTimestampMs";
     // Setup
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(&conn, profile.index_type, table_name, &["DATETIME2(3)"]).unwrap();
 
     // Fill buffer with values
@@ -728,7 +742,8 @@ fn columnar_insert_timestamp_ms(profile: &Profile) {
 // #[test_case(SQLITE_3; "SQLite 3")] different binary text representation
 fn columnar_insert_varbinary(profile: &Profile) {
     // Setup
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(
         &conn,
         profile.index_type,
@@ -786,7 +801,8 @@ fn columnar_insert_varbinary(profile: &Profile) {
 fn columnar_insert_varchar(profile: &Profile) {
     let table_name = "ColumnarInsertVarchar";
     // Setup
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(&conn, profile.index_type, table_name, &["VARCHAR(13)"]).unwrap();
 
     // Fill buffer with values
@@ -840,7 +856,8 @@ fn columnar_insert_varchar(profile: &Profile) {
 fn adaptive_columnar_insert_varchar(profile: &Profile) {
     let table_name = "AdaptiveColumnarInsertVarchar";
     // Setup
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(&conn, profile.index_type, table_name, &["VARCHAR(13)"]).unwrap();
 
     // Fill buffer with values
@@ -893,7 +910,8 @@ fn adaptive_columnar_insert_varchar(profile: &Profile) {
 fn adaptive_columnar_insert_varbin(profile: &Profile) {
     let table_name = "AdaptiveColumnarInsertVarbin";
     // Setup
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(&conn, profile.index_type, table_name, &["VARBINARY(13)"]).unwrap();
 
     // Fill buffer with values
@@ -947,7 +965,8 @@ fn adaptive_columnar_insert_varbin(profile: &Profile) {
 fn columnar_insert_wide_varchar(profile: &Profile) {
     let table_name = "ColumnarInsertWideVarchar";
     // Setup
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(&conn, profile.index_type, table_name, &["NVARCHAR(13)"]).unwrap();
 
     // Fill buffer with values
@@ -1000,7 +1019,7 @@ fn columnar_insert_wide_varchar(profile: &Profile) {
 
 #[test]
 fn bind_integer_parameter() {
-    let env = env();
+    let env = odbc_env();
     let conn = env
         .borrow()
         .connect_with_connection_string(MSSQL_CONNECTION)
@@ -1023,7 +1042,8 @@ fn bind_integer_parameter() {
 // #[test_case(SQLITE_3; "SQLite 3")] SQLite only cares for terminating zero, not the indicator
 fn insert_string_ending_with_nul(profile: &Profile) {
     let table_name = "InsertStringEndingWithNul";
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(&conn, profile.index_type, table_name, &["VARCHAR(10)"]).unwrap();
     let sql = format!("INSERT INTO {} (a) VALUES(?)", table_name);
     let param = "Hell\0";
@@ -1039,7 +1059,8 @@ fn insert_string_ending_with_nul(profile: &Profile) {
 fn prepared_statement(profile: &Profile) {
     // Setup
     let table_name = "PreparedStatement";
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(
         &conn,
         profile.index_type,
@@ -1077,7 +1098,8 @@ fn prepared_statement(profile: &Profile) {
 #[test_case(SQLITE_3; "SQLite 3")]
 fn preallocated(profile: &Profile) {
     // Prepare the statement once
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(&conn, profile.index_type, "Preallocated", &["VARCHAR(10)"]).unwrap();
     let mut prealloc = conn.preallocate().unwrap();
 
@@ -1107,7 +1129,8 @@ fn preallocated(profile: &Profile) {
 #[test_case(SQLITE_3; "SQLite 3")]
 fn preallocation_soundness(profile: &Profile) {
     // Prepare the statement once
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(
         &conn,
         profile.index_type,
@@ -1152,7 +1175,7 @@ fn preallocation_soundness(profile: &Profile) {
 
 #[test]
 fn integer_parameter_as_string() {
-    let env = env();
+    let env = odbc_env();
     let conn = env
         .borrow()
         .connect_with_connection_string(MSSQL_CONNECTION)
@@ -1173,7 +1196,7 @@ fn integer_parameter_as_string() {
 
 #[test]
 fn parameter_option_integer_some() {
-    let env = env();
+    let env = odbc_env();
     let conn = env
         .borrow()
         .connect_with_connection_string(MSSQL_CONNECTION)
@@ -1194,7 +1217,7 @@ fn parameter_option_integer_some() {
 
 #[test]
 fn parameter_option_integer_none() {
-    let env = env();
+    let env = odbc_env();
     let conn = env
         .borrow()
         .connect_with_connection_string(MSSQL_CONNECTION)
@@ -1215,7 +1238,8 @@ fn parameter_option_integer_none() {
 // #[test_case(SQLITE_3; "SQLite 3")] SQLite will work only if increasing length to VARCHAR(2).
 #[cfg(not(target_os = "windows"))] // Windows does not use UTF-8 locale by default
 fn non_ascii_char(profile: &Profile) {
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     let table_name = "NonAsciiChar";
 
     setup_empty_table(&conn, profile.index_type, table_name, &["VARCHAR(1)"]).unwrap();
@@ -1236,7 +1260,8 @@ fn non_ascii_char(profile: &Profile) {
 #[test_case(MARIADB; "Maria DB")]
 #[test_case(SQLITE_3; "SQLite 3")]
 fn wchar(profile: &Profile) {
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     let table_name = "WChar";
 
     setup_empty_table(&conn, profile.index_type, table_name, &["NVARCHAR(1)"]).unwrap();
@@ -1292,7 +1317,7 @@ fn wchar_as_char() {
 
 #[test]
 fn two_parameters_in_tuple() {
-    let env = env();
+    let env = odbc_env();
     let conn = env
         .borrow()
         .connect_with_connection_string(MSSQL_CONNECTION)
@@ -1313,7 +1338,8 @@ fn two_parameters_in_tuple() {
 #[test_case(SQLITE_3; "SQLite 3")]
 fn heterogenous_parameters_in_array(profile: &Profile) {
     let table_name = "heterogenous_parameters_in_array";
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
 
     // Setup table
     setup_empty_table(
@@ -1340,8 +1366,9 @@ fn heterogenous_parameters_in_array(profile: &Profile) {
 
 #[test]
 fn column_names_iterator() {
-    let env = env();
-    let conn = env.borrow()
+    let env = odbc_env();
+    let conn = env
+        .borrow()
         .connect_with_connection_string(MSSQL_CONNECTION)
         .unwrap();
     let sql = "SELECT title, year FROM Movies;";
@@ -1359,7 +1386,8 @@ fn column_names_iterator() {
 #[test_case(MARIADB; "Maria DB")]
 #[test_case(SQLITE_3; "SQLite 3")]
 fn bulk_insert_with_text_buffer(profile: &Profile) {
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(
         &conn,
         profile.index_type,
@@ -1395,7 +1423,8 @@ fn bulk_insert_with_text_buffer(profile: &Profile) {
 #[test_case(MARIADB; "Maria DB")]
 #[test_case(SQLITE_3; "SQLite 3")]
 fn bulk_insert_with_columnar_buffer(profile: &Profile) {
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(
         &conn,
         profile.index_type,
@@ -1459,7 +1488,8 @@ fn bulk_insert_with_columnar_buffer(profile: &Profile) {
 #[test_case(SQLITE_3; "SQLite 3")]
 fn send_connection(profile: &Profile) {
     let table_name = "SendConnection";
-    let conn = profile.connection().unwrap();
+
+    let conn = profile.connection(&ENV).unwrap();
     setup_empty_table(&conn, profile.index_type, table_name, &["INTEGER"]).unwrap();
 
     // Insert in one thread, query in another, using the same connection.
@@ -1478,7 +1508,8 @@ fn send_connection(profile: &Profile) {
 #[test_case(MARIADB; "Maria DB")]
 #[test_case(SQLITE_3; "SQLite 3")]
 fn parameter_option_strings(profile: &Profile) {
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(
         &conn,
         profile.index_type,
@@ -1510,7 +1541,8 @@ fn parameter_option_strings(profile: &Profile) {
 fn parameter_option_bytes(profile: &Profile) {
     let table_name = "ParameterOptionByteSlice";
 
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(&conn, profile.index_type, table_name, &["VARBINARY(50)"]).unwrap();
     let sql = format!("INSERT INTO {} (a) VALUES (?);", table_name);
     let mut prepared = conn.prepare(&sql).unwrap();
@@ -1537,7 +1569,8 @@ fn parameter_option_bytes(profile: &Profile) {
 #[test_case(SQLITE_3; "SQLite 3")]
 fn parameter_varchar_512(profile: &Profile) {
     let table_name = "ParameterVarchar512";
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(&conn, profile.index_type, table_name, &["VARCHAR(50)"]).unwrap();
     let sql = format!("INSERT INTO {} (a) VALUES (?);", table_name);
     let mut prepared = conn.prepare(&sql).unwrap();
@@ -1557,7 +1590,8 @@ fn parameter_varchar_512(profile: &Profile) {
 // #[test_case(SQLITE_3; "SQLite 3")] Different string representation of binary data
 fn parameter_varbinary_512(profile: &Profile) {
     let table_name = "ParameterVarbinary512";
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(&conn, profile.index_type, table_name, &["VARBINARY(50)"]).unwrap();
     let sql = format!("INSERT INTO {} (a) VALUES (?);", table_name);
     let mut prepared = conn.prepare(&sql).unwrap();
@@ -1577,7 +1611,8 @@ fn parameter_varbinary_512(profile: &Profile) {
 #[test_case(SQLITE_3; "SQLite 3")]
 fn parameter_cstr(profile: &Profile) {
     let table_name = "ParameterCStr";
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(&conn, profile.index_type, table_name, &["VARCHAR(50)"]).unwrap();
     let sql = format!("INSERT INTO {} (a) VALUES (?);", table_name);
     let mut prepared = conn.prepare(&sql).unwrap();
@@ -1596,7 +1631,8 @@ fn parameter_cstr(profile: &Profile) {
 #[test_case(MARIADB; "Maria DB")]
 #[test_case(SQLITE_3; "SQLite 3")]
 fn read_into_columnar_buffer(profile: &Profile) {
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(
         &conn,
         profile.index_type,
@@ -1651,7 +1687,8 @@ fn read_into_columnar_buffer(profile: &Profile) {
 #[test_case(MARIADB; "Maria DB")]
 #[test_case(SQLITE_3; "SQLite 3")]
 fn ignore_output_column(profile: &Profile) {
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(
         &conn,
         profile.index_type,
@@ -1682,8 +1719,9 @@ fn output_parameter() {
     let mut ret = Nullable::<i32>::null();
     let mut param = Nullable::<i32>::new(7);
 
-    let env = env();
-    let conn = env.borrow()
+    let env = odbc_env();
+    let conn = env
+        .borrow()
         .connect_with_connection_string(MSSQL_CONNECTION)
         .unwrap();
     conn.execute("{? = call TestParam(?)}", (Out(&mut ret), &mut param))
@@ -1698,7 +1736,8 @@ fn output_parameter() {
 #[test_case(MARIADB; "Maria DB")]
 #[test_case(SQLITE_3; "SQLite 3")]
 fn manual_commit_mode(profile: &Profile) {
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(&conn, profile.index_type, "ManualCommitMode", &["INTEGER"]).unwrap();
 
     // Manual commit mode needs to be explicitly enabled, since autocommit mode is default.
@@ -1744,7 +1783,8 @@ fn manual_commit_mode(profile: &Profile) {
 #[test_case(MARIADB; "Maria DB")]
 #[test_case(SQLITE_3; "SQLite 3")]
 fn unfinished_transaction(profile: &Profile) {
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(
         &conn,
         profile.index_type,
@@ -1766,7 +1806,8 @@ fn unfinished_transaction(profile: &Profile) {
 #[test_case(MARIADB; "Maria DB")]
 // #[test_case(SQLITE_3; "SQLite 3")]
 fn interior_nul(profile: &Profile) {
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(&conn, profile.index_type, "InteriorNul", &["VARCHAR(10)"]).unwrap();
 
     conn.execute(
@@ -1788,7 +1829,8 @@ fn interior_nul(profile: &Profile) {
 #[test_case(MARIADB; "Maria DB")]
 #[test_case(SQLITE_3; "SQLite 3")]
 fn get_data_int(profile: &Profile) {
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(&conn, profile.index_type, "GetDataInt", &["INTEGER"]).unwrap();
 
     conn.execute("INSERT INTO GetDataInt (a) VALUES (42),(NULL)", ())
@@ -1822,7 +1864,8 @@ fn get_data_int(profile: &Profile) {
 fn get_data_string(profile: &Profile) {
     let table_name = "GetDataString";
 
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(&conn, profile.index_type, table_name, &["Varchar(50)"]).unwrap();
 
     conn.execute(
@@ -1861,7 +1904,8 @@ fn get_data_string(profile: &Profile) {
 fn get_data_binary(profile: &Profile) {
     let table_name = "GetDataBinary";
 
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(&conn, profile.index_type, table_name, &["Varbinary(50)"]).unwrap();
 
     conn.execute(
@@ -1896,7 +1940,8 @@ fn get_data_binary(profile: &Profile) {
 // #[test_case(MARIADB; "Maria DB")] Does not support Varchar(max) syntax
 // #[test_case(SQLITE_3; "SQLite 3")] Does not support Varchar(max) syntax
 fn large_strings(profile: &Profile) {
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(&conn, profile.index_type, "LargeStrings", &["Varchar(max)"]).unwrap();
 
     let input = String::from_utf8(vec![b'a'; 2000]).unwrap();
@@ -1933,7 +1978,8 @@ fn large_strings(profile: &Profile) {
 // #[test_case(MARIADB; "Maria DB")] Does not support Varchar(max) syntax
 // #[test_case(SQLITE_3; "SQLite 3")] Does not support Varchar(max) syntax
 fn large_strings_get_text(profile: &Profile) {
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(
         &conn,
         profile.index_type,
@@ -1970,7 +2016,8 @@ fn large_strings_get_text(profile: &Profile) {
 #[test_case(MARIADB; "Maria DB")]
 #[test_case(SQLITE_3; "SQLite 3")]
 fn short_strings_get_text(profile: &Profile) {
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(
         &conn,
         profile.index_type,
@@ -2008,7 +2055,8 @@ fn short_strings_get_text(profile: &Profile) {
 #[test_case(SQLITE_3; "SQLite 3")]
 fn short_get_binary(profile: &Profile) {
     let table_name = "ShortGetBinary";
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(&conn, profile.index_type, table_name, &["Varbinary(15)"]).unwrap();
 
     conn.execute(
@@ -2039,7 +2087,8 @@ fn short_get_binary(profile: &Profile) {
 // #[test_case(SQLITE_3; "SQLite 3")] Does not support Varchar(max) syntax
 fn large_get_binary(profile: &Profile) {
     let table_name = "LargeGetBinary";
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(&conn, profile.index_type, table_name, &["Varbinary(max)"]).unwrap();
 
     let input = vec![42; 2000];
@@ -2068,7 +2117,8 @@ fn large_get_binary(profile: &Profile) {
 #[test_case(MARIADB; "Maria DB")]
 #[test_case(SQLITE_3; "SQLite 3")]
 fn capped_text_buffer(profile: &Profile) {
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     let table_name = "CappedTextBuffer";
 
     // Prepare table content
@@ -2101,7 +2151,8 @@ fn capped_text_buffer(profile: &Profile) {
 #[test_case(MARIADB; "Maria DB")]
 #[test_case(SQLITE_3; "SQLite 3")]
 fn use_truncated_output_as_input(profile: &Profile) {
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     let table_name = "UseTruncatedOutputAsInput";
 
     // Prepare table content
@@ -2138,7 +2189,8 @@ fn use_truncated_output_as_input(profile: &Profile) {
 #[test_case(MARIADB; "Maria DB - expected fail inconclusive")]
 #[test_case(SQLITE_3; "SQLite 3")]
 fn insert_truncated_value(profile: &Profile) {
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     let table_name = "InsertedTruncatedValue";
 
     // Prepare table content
@@ -2175,7 +2227,8 @@ fn insert_truncated_value(profile: &Profile) {
 #[test_case(MARIADB; "Maria DB expected fail inconclusive")]
 #[test_case(SQLITE_3; "SQLite 3")]
 fn insert_truncated_var_char_array(profile: &Profile) {
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     let table_name = "InsertedTruncatedVarCharArray";
 
     // Prepare table content
@@ -2213,7 +2266,8 @@ fn insert_truncated_var_char_array(profile: &Profile) {
 #[test_case(SQLITE_3; "SQLite 3")]
 fn arbitrary_input_parameters(profile: &Profile) {
     let table_name = "ArbitraryInputParameters";
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(
         &conn,
         profile.index_type,
@@ -2270,7 +2324,8 @@ fn synchronized_access_to_driver_and_data_source_info() {
 #[test_case(SQLITE_3; "SQLite 3")]
 fn insert_large_texts(profile: &Profile) {
     let table_name = "InsertLargeTexts";
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(&conn, profile.index_type, table_name, &["Text"]).unwrap();
 
     let insert = format!("INSERT INTO {} (a) VALUES (?)", table_name);
@@ -2291,7 +2346,8 @@ fn insert_large_texts(profile: &Profile) {
 #[test_case(SQLITE_3; "SQLite 3")]
 fn send_long_data_binary_vec(profile: &Profile) {
     let table_name = "SendLongDataBinaryVec";
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(&conn, profile.index_type, table_name, &[profile.blob_type]).unwrap();
 
     // Large vector with successive numbers. It's too large to send to the database in one go.
@@ -2317,7 +2373,8 @@ fn send_long_data_binary_vec(profile: &Profile) {
 #[test_case(SQLITE_3; "SQLite 3")]
 fn send_long_data_string(profile: &Profile) {
     let table_name = "SendLongDataString";
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(&conn, profile.index_type, table_name, &["Text"]).unwrap();
 
     // Large vector with successive numbers. It's too large to send to the database in one go.
@@ -2345,7 +2402,8 @@ fn send_long_data_string(profile: &Profile) {
 // size hint given
 fn send_long_data_binary_read(profile: &Profile) {
     let table_name = "SendLongDataBinaryRead";
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(&conn, profile.index_type, table_name, &[profile.blob_type]).unwrap();
 
     // Large vector with successive numbers. It's too large to send to the database in one go.
@@ -2372,7 +2430,8 @@ fn send_long_data_binary_read(profile: &Profile) {
 #[test_case(SQLITE_3; "SQLite 3")]
 fn send_long_data_binary_file(profile: &Profile) {
     let table_name = "SendLongDataBinaryFile";
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(&conn, profile.index_type, table_name, &[profile.blob_type]).unwrap();
 
     // Large vector with successive numbers. It's too large to send to the database in one go.
@@ -2403,7 +2462,8 @@ fn send_long_data_binary_file(profile: &Profile) {
 // #[test_case(MARIADB; "Maria DB")]
 // #[test_case(SQLITE_3; "SQLite 3")]
 fn escape_hatch(profile: &Profile) {
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     let preallocated = conn.preallocate().unwrap();
     let mut statement = preallocated.into_statement();
 
@@ -2433,7 +2493,8 @@ fn escape_hatch(profile: &Profile) {
 #[test_case(SQLITE_3; "SQLite 3")]
 fn varchar_null(profile: &Profile) {
     let table_name = "VarcharNull";
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     setup_empty_table(&conn, profile.index_type, table_name, &["VARCHAR(10)"]).unwrap();
 
     let insert = format!("INSERT INTO {} (a) VALUES (?)", table_name);
@@ -2450,14 +2511,15 @@ fn varchar_null(profile: &Profile) {
 #[test_case(MARIADB; "Maria DB")]
 #[test_case(SQLITE_3; "SQLite 3")]
 fn get_full_connection_string(profile: &Profile) {
-    let env = env();
+    let env = odbc_env();
     let mut completed_connection_string = OutputStringBuffer::with_buffer_size(1023);
-    env.borrow().driver_connect(
-        profile.connection_string,
-        Some(&mut completed_connection_string),
-        odbc_api::DriverCompleteOption::NoPrompt,
-    )
-    .unwrap();
+    env.borrow()
+        .driver_connect(
+            profile.connection_string,
+            Some(&mut completed_connection_string),
+            odbc_api::DriverCompleteOption::NoPrompt,
+        )
+        .unwrap();
 
     assert!(!completed_connection_string.is_truncated());
 
@@ -2474,13 +2536,14 @@ fn get_full_connection_string(profile: &Profile) {
 // #[test_case(SQLITE_3; "SQLite 3")] Does not write truncated connection string at all
 fn get_full_connection_string_truncated(profile: &Profile) {
     let mut completed_connection_string = OutputStringBuffer::with_buffer_size(1);
-    let env = env();
-    env.borrow().driver_connect(
-        profile.connection_string,
-        Some(&mut completed_connection_string),
-        odbc_api::DriverCompleteOption::NoPrompt,
-    )
-    .unwrap();
+    let env = odbc_env();
+    env.borrow()
+        .driver_connect(
+            profile.connection_string,
+            Some(&mut completed_connection_string),
+            odbc_api::DriverCompleteOption::NoPrompt,
+        )
+        .unwrap();
 
     eprintln!(
         "Output connection string: {}",
@@ -2494,7 +2557,8 @@ fn get_full_connection_string_truncated(profile: &Profile) {
 #[test_case(MARIADB, "MariaDB"; "Maria DB")]
 #[test_case(SQLITE_3, "SQLite"; "SQLite 3")]
 fn database_management_system_name(profile: &Profile, expected_name: &'static str) {
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
     let actual_name = conn.database_management_system_name().unwrap();
     assert_eq!(expected_name, actual_name);
 }
@@ -2510,7 +2574,8 @@ fn name_limits(
     expected_max_table_name_len: u16,
     expected_max_column_name_len: u16,
 ) {
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
 
     assert_eq!(
         conn.max_catalog_name_len().unwrap(),
@@ -2535,15 +2600,17 @@ fn name_limits(
 #[test_case(MARIADB, "test_db"; "Maria DB")]
 #[test_case(SQLITE_3, ""; "SQLite 3")]
 fn current_catalog(profile: &Profile, expected_catalog: &str) {
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
 
     assert_eq!(conn.current_catalog().unwrap(), expected_catalog);
 }
 
 #[test]
 fn columns_query() {
-    let env = env();
-    let conn = env.borrow()
+    let env = odbc_env();
+    let conn = env
+        .borrow()
         .connect_with_connection_string(MSSQL.connection_string)
         .unwrap();
 
@@ -2582,7 +2649,8 @@ fn columns_query() {
 #[test_case(SQLITE_3; "SQLite 3")]
 fn fill_vec_of_rows(profile: &Profile) {
     let table_name = "FillVecOfRows";
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
 
     setup_empty_table(
         &conn,
@@ -2647,7 +2715,8 @@ fn fill_vec_of_rows(profile: &Profile) {
 #[test_case(SQLITE_3; "SQLite 3")]
 fn no_data(profile: &Profile) {
     let table_name = "NoData";
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
 
     setup_empty_table(&conn, profile.index_type, table_name, &["INTEGER"]).unwrap();
     let sql = format!("DELETE FROM {} WHERE id=5", table_name);
@@ -2664,7 +2733,8 @@ fn no_data(profile: &Profile) {
 #[test_case(SQLITE_3; "SQLite 3")]
 fn row_array_size_66536(profile: &Profile) {
     let table_name = "RowArraySize66536";
-    let conn = profile.connection().unwrap();
+    let env = odbc_env();
+    let conn = profile.connection(env.borrow()).unwrap();
 
     setup_empty_table(&conn, profile.index_type, table_name, &["BIT"]).unwrap();
     let sql = format!("SELECT a FROM {}", table_name);
@@ -2685,8 +2755,9 @@ fn row_array_size_66536(profile: &Profile) {
 #[ignore = "Runs for a very long time"]
 fn many_diagnostic_messages() {
     let table_name = "ManyDiagnosticMessages";
-    let env = env();
-    let conn = env.borrow()
+    let env = odbc_env();
+    let conn = env
+        .borrow()
         .connect_with_connection_string(MSSQL.connection_string)
         .unwrap();
     // In order to generate a lot of diagnostic messages with one function call, we try a bulk
